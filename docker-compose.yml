@@ -3,7 +3,7 @@ services:
   app:
     build:
       args:
-        user: huydat
+        user: sammy
         uid: 1000
       context: ./
       dockerfile: Dockerfile
@@ -23,8 +23,6 @@ services:
     environment:
       MYSQL_DATABASE: ${DB_DATABASE}
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-      MYSQL_USER: ${DB_USERNAME}
       SERVICE_TAGS: dev
       SERVICE_NAME: mysql
     volumes:
