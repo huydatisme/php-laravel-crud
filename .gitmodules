@@ -1,0 +1,3 @@
+[submodule "php-laravel-crud"]
+	path = php-laravel-crud
+	url = https://github.com/huydatisme/php-laravel-crud.git
