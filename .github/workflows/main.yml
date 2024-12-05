@@ -38,12 +38,30 @@ jobs:
       - name: Get Instance IPs
         id: get_instance_ips
         run: |
-          INSTANCE_IDS=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=Web Server" --query "Reservations[*].Instances[*].InstanceId" --output text)
-          INSTANCE_IPS=$(aws ec2 describe-instances --instance-ids $INSTANCE_IDS --query "Reservations[*].Instances[*].PrivateIpAddress" --output text)
-
-          echo "Instance IPs found: ${INSTANCE_IPS}"
-          
-          echo "${INSTANCE_IPS}" > instance_ips.txt
+            # Lấy danh sách Instance IDs theo tag name
+            INSTANCE_IDS=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=${INSTANCE_NAME}" \
+            --query "Reservations[*].Instances[*].InstanceId" \
+            --output text)
+  
+              if [ -z "$INSTANCE_IDS" ]; then
+                echo "No instances found with name ${INSTANCE_NAME}"
+                exit 1
+                fi
+  
+              # Lấy danh sách IP và ghi vào file instance_ips.txt
+              echo "Getting IPs for instances: $INSTANCE_IDS"
+              > instance_ips.txt
+              for INSTANCE_ID in $INSTANCE_IDS; do
+                INSTANCE_IP=$(aws ec2 describe-instances \
+                  --instance-ids $INSTANCE_ID \
+                  --query "Reservations[*].Instances[*].PrivateIpAddress" \
+                  --output text)
+                echo "$INSTANCE_IP" >> instance_ips.txt
+              done
+      
+              echo "Instance IPs written to instance_ips.txt:"
+              cat instance_ips.txt
 
       - name: Set up SSH to bastion
         uses: webfactory/ssh-agent@v0.5.3
