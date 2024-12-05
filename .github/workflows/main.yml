@@ -55,11 +55,11 @@ jobs:
           ssh -o StrictHostKeyChecking=no -J ec2-user@${{ env.BASTION_HOST_IP }} ec2-user@${{ env.INSTANCE_IP }} << 'EOF'
 
             if [ "${ACTION}" == "down" ]; then
-              sed -i "s/MAINTENANCE_TIME/${MAINTENANCE_TIME}/g" /var/www/apps/config/maintenance.php
-              sudo php70 /var/www/apps/artisan down
+              sed -i "s/MAINTENANCE_TIME/${MAINTENANCE_TIME}/g" /var/www/php-laravel-crud/config/maintenance.php
+              sudo php70 /var/www/php-laravel-crud/artisan down
 
             elif [ "${ACTION}" == "up" ]; then
-              sudo php70 /var/www/apps/artisan up
+              sudo php70 /var/www/php-laravel-crud/artisan up
 
             else
               echo "Invalid action: ${ACTION}"
