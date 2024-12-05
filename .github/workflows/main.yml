@@ -42,8 +42,7 @@ jobs:
           INSTANCE_IPS=$(aws ec2 describe-instances --instance-ids $INSTANCE_IDS --query "Reservations[*].Instances[*].PrivateIpAddress" --output text)
 
           echo "Instance IPs found: ${INSTANCE_IPS}"
-
-          # Lưu danh sách IP vào file tạm thời
+          
           echo "${INSTANCE_IPS}" > instance_ips.txt
 
       - name: Set up SSH to bastion
@@ -57,8 +56,7 @@ jobs:
           BASTION_HOST_IP: ${{ env.BASTION_HOST_IP }}
         run: |
           INSTANCE_IPS=$(cat instance_ips.txt)
-
-          # Convert multiline IPs thành array
+          
           IFS=$'\n' read -rd '' -a IP_ARRAY <<< "$INSTANCE_IPS"
 
           for INSTANCE_IP in "${IP_ARRAY[@]}"; do
