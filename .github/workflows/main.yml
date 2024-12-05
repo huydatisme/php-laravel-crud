@@ -67,11 +67,11 @@ jobs:
             ssh -i "Web_Server_key.pem" ubuntu@172.31.48.91 << 'EC2EOF'
 
             if [ "${ACTION}" == "down" ]; then
-              sed -i "s/MAINTENANCE_TIME/${MAINTENANCE_TIME}/g" /var/www/php-laravel-crud/config/maintenance.php
-              sudo php /var/www/php-laravel-crud/artisan down
+              sudo sed -i "s/MAINTENANCE_TIME/${MAINTENANCE_TIME}/g" /var/www/php-laravel-crud/config/maintenance.php
+              sudo systemctl start nginx
 
             elif [ "${ACTION}" == "up" ]; then
-              sudo php /var/www/php-laravel-crud/artisan up
+              sudo systemctl stop nginx
 
             else
               echo "Invalid action: ${ACTION}"
