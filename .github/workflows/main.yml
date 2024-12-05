@@ -42,7 +42,12 @@ jobs:
           INSTANCE_IP=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[*].Instances[*].PrivateIpAddress" --output text)
           echo "INSTANCE_IP=${INSTANCE_IP}" >> $GITHUB_ENV
           echo "INSTANCE_IP=${INSTANCE_IP}"
+          echo "All instance IPs: ${INSTANCE_IPS}"
 
+          IFS=$'\n' # Thiết lập dấu phân cách dòng mới
+          for IP in $INSTANCE_IPS; do
+            echo "INSTANCE_IP=$IP" >> $GITHUB_ENV
+          done
       - name: Set up SSH to bastion
         uses: webfactory/ssh-agent@v0.5.3
         with:
