@@ -1,0 +1,68 @@
+name: Deploy to Server
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Choose action: down (enable maintenance) or up (disable maintenance)'
+        required: true
+        default: 'down'
+        options:
+          - down
+          - up
+      maintenance_time:
+        description: 'Set maintenance time text (used in maintenance message)'
+        required: true
+        default: ''
+
+env:
+  AWS_REGION: ap-northeast-1
+  INSTANCE_NAME: Web Server
+  BASTION_HOST_IP: 13.114.7.191
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up AWS CLI
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get Instance IP
+        id: get_instance_ip
+        run: |
+          INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=${{ env.INSTANCE_NAME }}" --query "Reservations[*].Instances[*].InstanceId" --output text)
+          INSTANCE_IP=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[*].Instances[*].PublicIpAddress" --output text)
+          echo "INSTANCE_IP=${INSTANCE_IP}" >> $GITHUB_ENV
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Update maintenance.php and set maintenance mode
+        env:
+          ACTION: ${{ github.event.inputs.action }}
+          MAINTENANCE_TIME: ${{ github.event.inputs.maintenance_time }}
+        run: |
+          ssh -o StrictHostKeyChecking=no -J ec2-user@${{ env.BASTION_HOST_IP }} ec2-user@${{ env.INSTANCE_IP }} << 'EOF'
+
+            if [ "${ACTION}" == "down" ]; then
+              sed -i "s/MAINTENANCE_TIME/${MAINTENANCE_TIME}/g" /var/www/apps/config/maintenance.php
+              sudo php70 /var/www/apps/artisan down
+
+            elif [ "${ACTION}" == "up" ]; then
+              sudo php70 /var/www/apps/artisan up
+
+            else
+              echo "Invalid action: ${ACTION}"
+              exit 1
+            fi
+          EOF
