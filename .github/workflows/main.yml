@@ -41,37 +41,44 @@ jobs:
           INSTANCE_IDS=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=Web Server" --query "Reservations[*].Instances[*].InstanceId" --output text)
           INSTANCE_IPS=$(aws ec2 describe-instances --instance-ids $INSTANCE_IDS --query "Reservations[*].Instances[*].PrivateIpAddress" --output text)
 
-          echo "Instance IPs: ${INSTANCE_IPS}"
+          echo "Instance IPs found: ${INSTANCE_IPS}"
 
-          # Set output with multiline-safe format
-          echo "::set-output name=instance_ips::${INSTANCE_IPS}"
-        outputs:
-           instance_ips: ${{ steps.get_instance_ips.outputs.instance_ips }}
+          # Lưu danh sách IP vào file tạm thời
+          echo "${INSTANCE_IPS}" > instance_ips.txt
 
       - name: Set up SSH to bastion
         uses: webfactory/ssh-agent@v0.5.3
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-      - name: Update maintenance.php and set maintenance mode
+      - name: Update maintenance.php and set maintenance mode on all instances
         env:
           ACTION: ${{ github.event.inputs.action }}
           MAINTENANCE_TIME: ${{ github.event.inputs.maintenance_time }}
           BASTION_HOST_IP: ${{ env.BASTION_HOST_IP }}
-          INSTANCE_IP: ${{env.INSTANCE_IP}}
         run: |
-          ssh -A -o StrictHostKeyChecking=no ubuntu@${BASTION_HOST_IP} << EOF
-            ssh -i "Web_Server_key.pem" ubuntu@${INSTANCE_IP} << 'EC2EOF'
+          INSTANCE_IPS=$(cat instance_ips.txt)
 
-            if [ "${ACTION}" == "down" ]; then
-              sudo sed -i "s/MAINTENANCE_TIME/${MAINTENANCE_TIME}/g" /var/www/php-laravel-crud/config/maintenance.php
-              sudo systemctl start nginx
+          # Convert multiline IPs thành array
+          IFS=$'\n' read -rd '' -a IP_ARRAY <<< "$INSTANCE_IPS"
 
-            elif [ "${ACTION}" == "up" ]; then
-              sudo systemctl stop nginx
-              sudo sed -i "s/${MAINTENANCE_TIME}/MAINTENANCE_TIME/g" /var/www/php-laravel-crud/config/maintenance.php
+          for INSTANCE_IP in "${IP_ARRAY[@]}"; do
+            echo "Updating maintenance mode on instance with IP: ${INSTANCE_IP}"
 
-            else
-              echo "Invalid action: ${ACTION}"
-              exit 1
-            fi
-          EOF
+            ssh -A -o StrictHostKeyChecking=no ubuntu@${BASTION_HOST_IP} << EOF
+              ssh -i "Web_Server_key.pem" ubuntu@${INSTANCE_IP} << 'EC2EOF'
+              
+              if [ "${ACTION}" == "down" ]; then
+                sudo sed -i "s/MAINTENANCE_TIME/${MAINTENANCE_TIME}/g" /var/www/php-laravel-crud/config/maintenance.php
+                sudo systemctl start nginx
+
+              elif [ "${ACTION}" == "up" ]; then
+                sudo systemctl stop nginx
+                sudo sed -i "s/${MAINTENANCE_TIME}/MAINTENANCE_TIME/g" /var/www/php-laravel-crud/config/maintenance.php
+
+              else
+                echo "Invalid action: ${ACTION}"
+                exit 1
+              fi
+              EC2EOF
+            EOF
+          done
