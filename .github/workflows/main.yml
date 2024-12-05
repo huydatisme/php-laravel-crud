@@ -18,7 +18,7 @@ on:
 env:
   AWS_REGION: ap-northeast-1
   INSTANCE_NAME: Web Server
-  BASTION_HOST_IP: 13.114.7.191
+  BASTION_HOST_IP: 52.69.208.60
 
 jobs:
   deploy:
