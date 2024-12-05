@@ -60,6 +60,8 @@ jobs:
         env:
           ACTION: ${{ github.event.inputs.action }}
           MAINTENANCE_TIME: ${{ github.event.inputs.maintenance_time }}
+          BASTION_HOST_IP: ${{ env.BASTION_HOST_IP }}
+          INSTANCE_IP: ${{env.INSTANCE_IP}}
         run: |
           ssh -A -o StrictHostKeyChecking=no ubuntu@${BASTION_HOST_IP} << 'EOF'
             ssh ubuntu@${INSTANCE_IP} << 'EC2EOF'
