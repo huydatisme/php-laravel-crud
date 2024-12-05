@@ -6,7 +6,7 @@ on:
       action:
         description: 'Choose action: down (enable maintenance) or up (disable maintenance)'
         required: true
-        default: 'down'
+        type: choice
         options:
           - down
           - up
