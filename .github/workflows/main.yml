@@ -63,8 +63,9 @@ jobs:
           BASTION_HOST_IP: ${{ env.BASTION_HOST_IP }}
           INSTANCE_IP: ${{env.INSTANCE_IP}}
         run: |
-          ssh -A -tt -o StrictHostKeyChecking=no ubuntu@${BASTION_HOST_IP} << 'EOF'
-            ssh -A -tt  ubuntu@${INSTANCE_IP} << 'EOF'
+         ssh -o StrictHostKeyChecking=no \
+              -o ProxyCommand="ssh -o StrictHostKeyChecking=no -A ubuntu@${BASTION_HOST_IP} -W %h:%p" \
+              ubuntu@${INSTANCE_IP} << "EOF"
 
             if [ "${ACTION}" == "down" ]; then
               sed -i "s/MAINTENANCE_TIME/${MAINTENANCE_TIME}/g" /var/www/php-laravel-crud/config/maintenance.php
