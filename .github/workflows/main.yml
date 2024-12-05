@@ -64,7 +64,7 @@ jobs:
           INSTANCE_IP: ${{env.INSTANCE_IP}}
         run: |
           ssh -A -tt -o StrictHostKeyChecking=no ubuntu@${BASTION_HOST_IP} << 'EOF'
-            ssh -A -tt  ubuntu@${INSTANCE_IP} << 'EC2EOF'
+            ssh -A -tt  ubuntu@172.31.48.91 << 'EC2EOF'
 
             if [ "${ACTION}" == "down" ]; then
               sed -i "s/MAINTENANCE_TIME/${MAINTENANCE_TIME}/g" /var/www/php-laravel-crud/config/maintenance.php
