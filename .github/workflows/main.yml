@@ -72,6 +72,7 @@ jobs:
 
             elif [ "${ACTION}" == "up" ]; then
               sudo systemctl stop nginx
+              sudo sed -i "s/${MAINTENANCE_TIME}/MAINTENANCE_TIME/g" /var/www/php-laravel-crud/config/maintenance.php
 
             else
               echo "Invalid action: ${ACTION}"
