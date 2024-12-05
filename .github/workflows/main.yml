@@ -18,7 +18,7 @@ on:
 env:
   AWS_REGION: ap-northeast-1
   INSTANCE_NAME: Web Server
-  BASTION_HOST_IP: 13.114.7.191
+  BASTION_HOST_IP: ${{ env.BASTION_HOST_IP }}
 
 jobs:
   deploy:
@@ -42,17 +42,27 @@ jobs:
           INSTANCE_IP=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[*].Instances[*].PublicIpAddress" --output text)
           echo "INSTANCE_IP=${INSTANCE_IP}" >> $GITHUB_ENV
 
-      - name: Set up SSH
+      - name: Set up SSH to bastion
         uses: webfactory/ssh-agent@v0.5.3
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
+      - name: Add EC2 SSH Key on Bastion Host
+        env:
+          EC2_SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          BASTION_HOST_IP: ${{ env.BASTION_HOST_IP }}
+        run: |
+          ssh -A -o StrictHostKeyChecking=no ubuntu@${BASTION_HOST_IP} << 'EOF'
+            echo "${EC2_SSH_KEY}" | ssh-add -
+            echo "Added EC2 SSH Key to agent on Bastion Host"
+            exit
+          EOF
       - name: Update maintenance.php and set maintenance mode
         env:
           ACTION: ${{ github.event.inputs.action }}
           MAINTENANCE_TIME: ${{ github.event.inputs.maintenance_time }}
         run: |
-          ssh -o StrictHostKeyChecking=no -J ubuntu@${{ env.BASTION_HOST_IP }} ubuntu@${{ env.INSTANCE_IP }} << 'EOF'
+          ssh -A -o StrictHostKeyChecking=no ubuntu@${BASTION_HOST_IP} << 'EOF'
+            ssh ubuntu@${INSTANCE_IP} << 'EC2EOF'
 
             if [ "${ACTION}" == "down" ]; then
               sed -i "s/MAINTENANCE_TIME/${MAINTENANCE_TIME}/g" /var/www/php-laravel-crud/config/maintenance.php
