@@ -38,22 +38,22 @@ jobs:
       - name: Get Instance IPs
         id: get_instance_ips
         run: |
-          INSTANCE_IDS=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=Web Server" --query "Reservations[*].Instances[*].InstanceId" --output text)
+          INSTANCE_IDS=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=${{ env.INSTANCE_NAME }}" --query "Reservations[*].Instances[*].InstanceId" --output text)
           INSTANCE_IPS=$(aws ec2 describe-instances --instance-ids $INSTANCE_IDS --query "Reservations[*].Instances[*].PrivateIpAddress" --output text)
 
           if [ -z "$INSTANCE_IPS" ]; then
-            echo "No instances found with tag 'Web Server'."
+            echo "No instances found with tag '${{ env.INSTANCE_NAME }}'."
             exit 1
           fi
 
           echo "Instance IPs found: ${INSTANCE_IPS}"
           echo "${INSTANCE_IPS}" > instance_ips.txt
 
-
       - name: Set up SSH to bastion
         uses: webfactory/ssh-agent@v0.5.3
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
       - name: Update maintenance.php and set maintenance mode on all instances
         env:
           ACTION: ${{ github.event.inputs.action }}
@@ -74,28 +74,34 @@ jobs:
           fi
 
           for INSTANCE_IP in "${IP_ARRAY[@]}"; do
-            echo "Attempting SSH connection to Bastion Host..."
-            ssh -A -o StrictHostKeyChecking=no ubuntu@${BASTION_HOST_IP} << EOF
-              echo "Connected to Bastion Host."
-              echo "Attempting SSH connection to EC2 instance ${INSTANCE_IP}..."
-              ssh -i "Web_Server_key.pem" ubuntu@${INSTANCE_IP} << 'EC2EOF'
-              
-              echo "Connected to EC2 instance ${INSTANCE_IP}."
+            echo "Connecting to Bastion Host to manage instance ${INSTANCE_IP}..."
 
-              if [ "${ACTION}" == "down" ]; then
-                echo "Setting maintenance mode down..."
-                sudo sed -i "s/MAINTENANCE_TIME/${MAINTENANCE_TIME}/g" /var/www/php-laravel-crud/config/maintenance.php
-                sudo systemctl start nginx
+            ssh -A -o StrictHostKeyChecking=no ubuntu@${BASTION_HOST_IP} "bash -s" << EOF
+              echo "Connected to Bastion Host. Managing instance ${INSTANCE_IP}..."
+              ssh -i "Web_Server_key.pem" -o StrictHostKeyChecking=no ubuntu@${INSTANCE_IP} "bash -s" << 'EC2EOF'
+                echo "Connected to EC2 instance ${INSTANCE_IP}."
 
-              elif [ "${ACTION}" == "up" ]; then
-                echo "Removing maintenance mode..."
-                sudo systemctl stop nginx
-                sudo sed -i "s/${MAINTENANCE_TIME}/MAINTENANCE_TIME/g" /var/www/php-laravel-crud/config/maintenance.php
+                if [ "${ACTION}" == "down" ]; then
+                  echo "Setting maintenance mode down..."
+                  sudo sed -i "s/MAINTENANCE_TIME/${MAINTENANCE_TIME}/g" /var/www/php-laravel-crud/config/maintenance.php || exit 1
+                  sudo systemctl start nginx || exit 1
 
-              else
-                echo "Invalid action: ${ACTION}"
-                exit 1
-              fi
+                elif [ "${ACTION}" == "up" ]; then
+                  echo "Removing maintenance mode..."
+                  sudo systemctl stop nginx || exit 1
+                  sudo sed -i "s/${MAINTENANCE_TIME}/MAINTENANCE_TIME/g" /var/www/php-laravel-crud/config/maintenance.php || exit 1
+
+                else
+                  echo "Invalid action: ${ACTION}"
+                  exit 1
+                fi
               EC2EOF
             EOF
+
+            if [ $? -ne 0 ]; then
+              echo "Failed to manage instance ${INSTANCE_IP}."
+              exit 1
+            else
+              echo "Successfully managed instance ${INSTANCE_IP}."
+            fi
           done
