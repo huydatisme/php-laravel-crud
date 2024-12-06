@@ -41,7 +41,7 @@ jobs:
           INSTANCE_IDS=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=${{ env.INSTANCE_NAME }}" --query "Reservations[*].Instances[*].InstanceId" --output text)
           INSTANCE_IPS=$(aws ec2 describe-instances --instance-ids $INSTANCE_IDS --query "Reservations[*].Instances[*].PrivateIpAddress" --output text)
 
-          if [ -z "$INSTANCE_IPS" ]; then
+          if [ -e "$INSTANCE_IPS" ]; then
             echo "No instances found with tag '${{ env.INSTANCE_NAME }}'."
             exit 1
           fi
