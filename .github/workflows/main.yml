@@ -38,7 +38,7 @@ jobs:
       - name: Get Instance IPs
         id: get_instance_ips
         run: |
-          # Lấy danh sách Instance IDs theo tag name
+          echo "Fetching instance IDs for tag: Name=${INSTANCE_NAME}"
           INSTANCE_IDS=$(aws ec2 describe-instances \
           --filters "Name=tag:Name,Values=${INSTANCE_NAME}" \
           --query "Reservations[*].Instances[*].InstanceId" \
@@ -49,7 +49,7 @@ jobs:
             exit 1
           fi
 
-          # Lấy danh sách IP và lưu vào một biến môi trường
+          echo "Fetching private IPs for instances: $INSTANCE_IDS"
           INSTANCE_IPS=()
           for INSTANCE_ID in $INSTANCE_IDS; do
             INSTANCE_IP=$(aws ec2 describe-instances \
@@ -58,12 +58,11 @@ jobs:
               --output text)
             INSTANCE_IPS+=("$INSTANCE_IP")
           done
-  
-          # Kết hợp các IP thành một chuỗi phân tách bằng dấu phẩy
+
           INSTANCE_IPS_JOINED=$(IFS=,; echo "${INSTANCE_IPS[*]}")
           echo "INSTANCE_IPS=$INSTANCE_IPS_JOINED" >> $GITHUB_ENV
-
           echo "All Instance IPs: $INSTANCE_IPS_JOINED"
+
       - name: Set up SSH to bastion
         uses: webfactory/ssh-agent@v0.5.3
         with:
@@ -74,44 +73,37 @@ jobs:
           ACTION: ${{ github.event.inputs.action }}
           MAINTENANCE_TIME: ${{ github.event.inputs.maintenance_time }}
           BASTION_HOST_IP: ${{ env.BASTION_HOST_IP }}
+          INSTANCE_IPS: ${{ env.INSTANCE_IPS }}
         run: |
           if [ -z "$INSTANCE_IPS" ]; then
-          echo "No instance IPs found!"
-          exit 1
+            echo "No instance IPs found!"
+            exit 1
           fi
 
-          # Chuyển chuỗi các IP thành mảng
           IFS=',' read -ra IP_ARRAY <<< "$INSTANCE_IPS"
 
-
           for INSTANCE_IP in "${IP_ARRAY[@]}"; do
-             echo "Updating maintenance mode on instance with IP: ${INSTANCE_IP}"
-  
-              ssh -A -o StrictHostKeyChecking=no ubuntu@${BASTION_HOST_IP} << EOF
-              echo "Connected to Bastion Host."
-              ssh -i "Web_Server_key.pem" ubuntu@${INSTANCE_IP} << 'EC2EOF'
+            echo "Updating maintenance mode on instance with IP: ${INSTANCE_IP}"
 
-                if [ "${ACTION}" == "down" ]; then
-                  echo "Setting maintenance mode down..."
-                  sudo sed -i "s/MAINTENANCE_TIME/${MAINTENANCE_TIME}/g" /var/www/php-laravel-crud/config/maintenance.php || exit 1
-                  sudo systemctl start nginx || exit 1
-
-                elif [ "${ACTION}" == "up" ]; then
-                  echo "Removing maintenance mode..."
-                  sudo systemctl stop nginx || exit 1
-                  sudo sed -i "s/${MAINTENANCE_TIME}/MAINTENANCE_TIME/g" /var/www/php-laravel-crud/config/maintenance.php || exit 1
-
-                else
-                  echo "Invalid action: ${ACTION}"
-                  exit 1
-                fi
-              EC2EOF
-            EOF
-
-            if [ $? -ne 0 ]; then
-              echo "Failed to manage instance ${INSTANCE_IP}."
-              exit 1
-            else
-              echo "Successfully managed instance ${INSTANCE_IP}."
-            fi
-          done
+            ssh -A -o StrictHostKeyChecking=no ubuntu@${BASTION_HOST_IP} << EOF
+          echo "Connected to Bastion Host."
+          ssh -i "Web_Server_key.pem" ubuntu@${INSTANCE_IP} << 'EC2EOF'
+          if [ "\${ACTION}" == "down" ]; then
+            echo "Setting maintenance mode down on \${INSTANCE_IP}"
+            sudo sed -i "s/MAINTENANCE_TIME/${MAINTENANCE_TIME}/g" /var/www/php-laravel-crud/config/maintenance.php || exit 1
+            sudo systemctl start nginx || exit 1
+          elif [ "\${ACTION}" == "up" ]; then
+            echo "Removing maintenance mode on \${INSTANCE_IP}"
+            sudo systemctl stop nginx || exit 1
+            sudo sed -i "s/${MAINTENANCE_TIME}/MAINTENANCE_TIME/g" /var/www/php-laravel-crud/config/maintenance.php || exit 1
+          else
+            echo "Invalid action: \${ACTION}"
+            exit 1
+          fi
+          EC2EOF
+          EOF
+                      if [ $? -ne 0 ]; then
+                        echo "Failed to update instance ${INSTANCE_IP}."
+                        exit 1
+                      fi
+                    done
