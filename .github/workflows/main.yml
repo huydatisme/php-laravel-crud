@@ -45,10 +45,8 @@ jobs:
             echo "No instances found with tag '${{ env.INSTANCE_NAME }}'."
             exit 1
           fi
+          IFS=' ' read -r -a IP_ARRAY <<< "$INSTANCE_IPS"
 
-          echo "${INSTANCE_IPS}" > instance_ips.txt && echo "File instance_ips.txt đã được ghi."
-          cat instance_ips.txt || echo "Không thể đọc file instance_ips.txt."
-          pwd
 
       - name: Set up SSH to bastion
         uses: webfactory/ssh-agent@v0.5.3
@@ -61,16 +59,6 @@ jobs:
           MAINTENANCE_TIME: ${{ github.event.inputs.maintenance_time }}
           BASTION_HOST_IP: ${{ env.BASTION_HOST_IP }}
         run: |
-          pwd
-          ls -la
-          if [ ! -e instance_ips.txt ]; then
-            echo "File instance_ips.txt not found!"
-            exit 1
-          fi
-
-          INSTANCE_IPS=$(cat instance_ips.txt)
-          IFS=$'\n' read -rd '' -a IP_ARRAY <<< "$INSTANCE_IPS"
-
           if [ ${#IP_ARRAY[@]} -eq 0 ]; then
             echo "No IPs found in the file."
             exit 1
