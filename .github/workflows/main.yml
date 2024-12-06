@@ -48,6 +48,7 @@ jobs:
 
           echo "${INSTANCE_IPS}" > instance_ips.txt && echo "File instance_ips.txt đã được ghi."
           cat instance_ips.txt || echo "Không thể đọc file instance_ips.txt."
+          pwd
 
       - name: Set up SSH to bastion
         uses: webfactory/ssh-agent@v0.5.3
