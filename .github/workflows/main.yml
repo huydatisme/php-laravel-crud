@@ -88,16 +88,16 @@ jobs:
             ssh -A -o StrictHostKeyChecking=no ubuntu@${BASTION_HOST_IP} << EOF
           echo "Connected to Bastion Host."
           ssh -i "Web_Server_key.pem" ubuntu@${INSTANCE_IP} << 'EC2EOF'
-          if [ "\${ACTION}" == "down" ]; then
+          if [ "${ACTION}" == "down" ]; then
             echo "Setting maintenance mode down on \${INSTANCE_IP}"
             sudo sed -i "s/MAINTENANCE_TIME/${MAINTENANCE_TIME}/g" /var/www/php-laravel-crud/config/maintenance.php || exit 1
             sudo systemctl start nginx || exit 1
-          elif [ "\${ACTION}" == "up" ]; then
+          elif [ "${ACTION}" == "up" ]; then
             echo "Removing maintenance mode on \${INSTANCE_IP}"
             sudo systemctl stop nginx || exit 1
             sudo sed -i "s/${MAINTENANCE_TIME}/MAINTENANCE_TIME/g" /var/www/php-laravel-crud/config/maintenance.php || exit 1
           else
-            echo "Invalid action: \${ACTION}"
+            echo "Invalid action: ${ACTION}"
             exit 1
           fi
           EC2EOF
