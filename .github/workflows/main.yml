@@ -85,12 +85,11 @@ jobs:
 
 
           for INSTANCE_IP in "${IP_ARRAY[@]}"; do
-            echo "Connecting to Bastion Host to manage instance ${INSTANCE_IP}..."
-
-            ssh -A -o StrictHostKeyChecking=no ubuntu@${BASTION_HOST_IP} "bash -s" << EOF
-              echo "Connected to Bastion Host. Managing instance ${INSTANCE_IP}..."
-              ssh -i "Web_Server_key.pem" -o StrictHostKeyChecking=no ubuntu@${INSTANCE_IP} "bash -s" << 'EC2EOF'
-                echo "Connected to EC2 instance ${INSTANCE_IP}."
+             echo "Updating maintenance mode on instance with IP: ${INSTANCE_IP}"
+  
+              ssh -A -o StrictHostKeyChecking=no ubuntu@${BASTION_HOST_IP} << EOF
+              echo "Connected to Bastion Host."
+              ssh -i "Web_Server_key.pem" ubuntu@${INSTANCE_IP} << 'EC2EOF'
 
                 if [ "${ACTION}" == "down" ]; then
                   echo "Setting maintenance mode down..."
