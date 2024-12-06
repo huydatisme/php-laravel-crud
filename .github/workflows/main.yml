@@ -46,8 +46,8 @@ jobs:
             exit 1
           fi
 
-          echo "Instance IPs found: ${INSTANCE_IPS}"
-          echo "${INSTANCE_IPS}" > instance_ips.txt
+          echo "${INSTANCE_IPS}" > instance_ips.txt && echo "File instance_ips.txt đã được ghi."
+          cat instance_ips.txt || echo "Không thể đọc file instance_ips.txt."
 
       - name: Set up SSH to bastion
         uses: webfactory/ssh-agent@v0.5.3
@@ -60,7 +60,8 @@ jobs:
           MAINTENANCE_TIME: ${{ github.event.inputs.maintenance_time }}
           BASTION_HOST_IP: ${{ env.BASTION_HOST_IP }}
         run: |
-          if [ ! -f instance_ips.txt ]; then
+          pwd
+          if [ ! -e instance_ips.txt ]; then
             echo "File instance_ips.txt not found!"
             exit 1
           fi
