@@ -62,6 +62,7 @@ jobs:
           BASTION_HOST_IP: ${{ env.BASTION_HOST_IP }}
         run: |
           pwd
+          ls -la
           if [ ! -e instance_ips.txt ]; then
             echo "File instance_ips.txt not found!"
             exit 1
