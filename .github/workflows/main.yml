@@ -45,12 +45,7 @@ jobs:
             echo "No instances found with tag '${{ env.INSTANCE_NAME }}'."
             exit 1
           fi
-           echo "Instance IPs found: ${INSTANCE_IPS}"
-          # Ghi IP vào GITHUB_ENV với định dạng đúng
-          IFS=' ' read -r -a IP_ARRAY <<< "$INSTANCE_IPS"
-          for IP in "${IP_ARRAY[@]}"; do
-            echo "INSTANCE_IP=${IP}" >> $GITHUB_ENV
-          done
+          echo "INSTANCE_IPS=\"$INSTANCE_IPS\"" >> $GITHUB_ENV
 
       - name: Set up SSH to bastion
         uses: webfactory/ssh-agent@v0.5.3
@@ -63,11 +58,12 @@ jobs:
           MAINTENANCE_TIME: ${{ github.event.inputs.maintenance_time }}
           BASTION_HOST_IP: ${{ env.BASTION_HOST_IP }}
         run: |
-          IP_ARRAY=()
-          while IFS= read -r line; do
-            IP_ARRAY+=("$line")
-          done < <(printenv | grep INSTANCE_IP= | cut -d '=' -f2)
+          IFS=' ' read -r -a IP_ARRAY <<< "$INSTANCE_IPS"
 
+          if [ ${#IP_ARRAY[@]} -eq 0 ]; then
+            echo "No IPs found in the environment."
+            exit 1
+          fi
           if [ ${#IP_ARRAY[@]} -eq 0 ]; then
             echo "No IPs found in the file."
             exit 1
