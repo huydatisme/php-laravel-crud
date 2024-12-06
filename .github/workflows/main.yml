@@ -38,15 +38,32 @@ jobs:
       - name: Get Instance IPs
         id: get_instance_ips
         run: |
-          INSTANCE_IDS=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=${{ env.INSTANCE_NAME }}" --query "Reservations[*].Instances[*].InstanceId" --output text)
-          INSTANCE_IPS=$(aws ec2 describe-instances --instance-ids $INSTANCE_IDS --query "Reservations[*].Instances[*].PrivateIpAddress" --output text)
+          # Lấy danh sách Instance IDs theo tag name
+          INSTANCE_IDS=$(aws ec2 describe-instances \
+          --filters "Name=tag:Name,Values=${INSTANCE_NAME}" \
+          --query "Reservations[*].Instances[*].InstanceId" \
+          --output text)
 
-          if [ -e "$INSTANCE_IPS" ]; then
-            echo "No instances found with tag '${{ env.INSTANCE_NAME }}'."
+          if [ -z "$INSTANCE_IDS" ]; then
+            echo "No instances found with name ${INSTANCE_NAME}"
             exit 1
           fi
-          echo "INSTANCE_IPS=\"$INSTANCE_IPS\"" >> $GITHUB_ENV
 
+          # Lấy danh sách IP và lưu vào một biến môi trường
+          INSTANCE_IPS=()
+          for INSTANCE_ID in $INSTANCE_IDS; do
+            INSTANCE_IP=$(aws ec2 describe-instances \
+              --instance-ids $INSTANCE_ID \
+              --query "Reservations[*].Instances[*].PrivateIpAddress" \
+              --output text)
+            INSTANCE_IPS+=("$INSTANCE_IP")
+          done
+  
+          # Kết hợp các IP thành một chuỗi phân tách bằng dấu phẩy
+          INSTANCE_IPS_JOINED=$(IFS=,; echo "${INSTANCE_IPS[*]}")
+          echo "INSTANCE_IPS=$INSTANCE_IPS_JOINED" >> $GITHUB_ENV
+
+          echo "All Instance IPs: $INSTANCE_IPS_JOINED"
       - name: Set up SSH to bastion
         uses: webfactory/ssh-agent@v0.5.3
         with:
@@ -58,16 +75,14 @@ jobs:
           MAINTENANCE_TIME: ${{ github.event.inputs.maintenance_time }}
           BASTION_HOST_IP: ${{ env.BASTION_HOST_IP }}
         run: |
-          IFS=' ' read -r -a IP_ARRAY <<< "$INSTANCE_IPS"
+          if [ -z "$INSTANCE_IPS" ]; then
+          echo "No instance IPs found!"
+          exit 1
+          fi
 
-          if [ ${#IP_ARRAY[@]} -eq 0 ]; then
-            echo "No IPs found in the environment."
-            exit 1
-          fi
-          if [ ${#IP_ARRAY[@]} -eq 0 ]; then
-            echo "No IPs found in the file."
-            exit 1
-          fi
+          # Chuyển chuỗi các IP thành mảng
+          IFS=',' read -ra IP_ARRAY <<< "$INSTANCE_IPS"
+
 
           for INSTANCE_IP in "${IP_ARRAY[@]}"; do
             echo "Connecting to Bastion Host to manage instance ${INSTANCE_IP}..."
