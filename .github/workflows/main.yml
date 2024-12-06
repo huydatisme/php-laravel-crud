@@ -46,7 +46,9 @@ jobs:
             exit 1
           fi
           echo "Instance IPs found: ${INSTANCE_IPS}"
-          echo "::set-output name=instance_ips::${INSTANCE_IPS}"
+
+          echo "INSTANCE_IPS=${INSTANCE_IPS}" >> $GITHUB_ENV
+
 
       - name: Set up SSH to bastion
         uses: webfactory/ssh-agent@v0.5.3
@@ -59,6 +61,7 @@ jobs:
           MAINTENANCE_TIME: ${{ github.event.inputs.maintenance_time }}
           BASTION_HOST_IP: ${{ env.BASTION_HOST_IP }}
         run: |
+          IFS=' ' read -r -a IP_ARRAY <<< "$INSTANCE_IPS"
           if [ ${#IP_ARRAY[@]} -eq 0 ]; then
             echo "No IPs found in the file."
             exit 1
