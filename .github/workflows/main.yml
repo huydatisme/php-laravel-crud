@@ -45,8 +45,8 @@ jobs:
             echo "No instances found with tag '${{ env.INSTANCE_NAME }}'."
             exit 1
           fi
-          IFS=' ' read -r -a IP_ARRAY <<< "$INSTANCE_IPS"
-
+          echo "Instance IPs found: ${INSTANCE_IPS}"
+          echo "::set-output name=instance_ips::${INSTANCE_IPS}"
 
       - name: Set up SSH to bastion
         uses: webfactory/ssh-agent@v0.5.3
