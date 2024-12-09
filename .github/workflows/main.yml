@@ -40,7 +40,7 @@ jobs:
         run: |
           echo "Fetching instance IDs for tag: Name=${INSTANCE_NAME}"
           INSTANCE_IDS=$(aws ec2 describe-instances \
-          --filters "Name=tag:Name,Values=${INSTANCE_NAME}" \
+          --filters "Name=tag:Name,Values=${INSTANCE_NAME}" "Name=instance-state-name,Values=running" \
           --query "Reservations[*].Instances[*].InstanceId" \
           --output text)
 
